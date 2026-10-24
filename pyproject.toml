@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heartbeat"
+version = "0.1.0"
+description = "A tiny systolic array simulator"
+requires-python = ">=3.8"
+
+[project.scripts]
+heartbeat = "heartbeat.cli:main"
+
+[tool.setuptools]
+packages = ["heartbeat"]
