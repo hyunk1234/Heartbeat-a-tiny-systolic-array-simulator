@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from heartbeat import simulate, matmul_ref, allclose
+from heartbeat import simulate, matmul_ref, allclose, native
 from heartbeat.cli import main
 
 
@@ -78,6 +78,32 @@ class TestErrorsAndCli(unittest.TestCase):
         self.assertEqual(main(["run", "--a", "1,2;3,4", "--b", "5,6;7,8", "--trace"]), 0)
         self.assertEqual(main(["compare", "--m", "5", "--k", "4", "--n", "6", "--rows", "2", "--cols", "3"]), 0)
         self.assertEqual(main(["run", "--a", "1,2", "--b", "1,2"]), 2)
+
+
+@unittest.skipUnless(native.available(), "C++ library not built (run `make`)")
+class TestNativeMatchesPython(unittest.TestCase):
+    """The C++ core must agree with the Python reference on results AND timing."""
+
+    def test_random_shapes(self):
+        rng = random.Random(11)
+        for _ in range(200):
+            m, k, n = (rng.randint(1, 8) for _ in range(3))
+            A, B = rand(m, k, rng), rand(k, n, rng)
+            rows = rng.choice([None, rng.randint(1, 5)])
+            cols = rng.choice([None, rng.randint(1, 5)])
+            for df in ("os", "ws"):
+                with self.subTest(df=df, m=m, k=k, n=n, rows=rows, cols=cols):
+                    py = simulate(A, B, df, rows, cols)
+                    cc = simulate(A, B, df, rows, cols, backend="native")
+                    self.assertTrue(allclose(cc.C, py.C))
+                    for f in ("cycles", "load_cycles", "macs", "tiles", "rows", "cols"):
+                        self.assertEqual(getattr(cc, f), getattr(py, f), f)
+
+    def test_errors_cross_the_boundary(self):
+        with self.assertRaises(ValueError):
+            simulate([[1, 2]], [[1, 2]], backend="native")
+        with self.assertRaises(ValueError):
+            simulate([[1]], [[1]], "os", trace=True, backend="native")
 
 
 if __name__ == "__main__":

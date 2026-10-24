@@ -6,7 +6,7 @@ import random
 import sys
 import time
 
-from . import simulate, matmul_ref, allclose
+from . import simulate, matmul_ref, allclose, native
 from .visualize import render, render_matrix
 
 NAMES = {"os": "output-stationary", "ws": "weight-stationary"}
@@ -41,7 +41,10 @@ def summary(res) -> str:
 def cmd_run(args) -> int:
     A, B = _inputs(args)
     show = args.trace or args.animate
-    res = simulate(A, B, args.dataflow, args.rows, args.cols, trace=show)
+    if show and args.backend == "native":
+        print("note: --trace/--animate use the python backend", file=sys.stderr)
+    res = simulate(A, B, args.dataflow, args.rows, args.cols, trace=show,
+                   backend="python" if show else args.backend)
     if show:
         for snap in res.trace:
             if args.animate:
@@ -66,10 +69,32 @@ def cmd_compare(args) -> int:
     print(f"A is {len(A)}x{len(A[0])}, B is {len(B)}x{len(B[0])}, array {args.rows or '-'}x{args.cols or '-'}")
     ok = True
     for df in ("os", "ws"):
-        res = simulate(A, B, df, args.rows, args.cols)
+        res = simulate(A, B, df, args.rows, args.cols, backend=args.backend)
         good = allclose(res.C, ref)
         ok &= good
         print(" ", summary(res), "" if good else "  <-- MISMATCH")
+    return 0 if ok else 1
+
+
+def cmd_bench(args) -> int:
+    """Time the pure-Python simulator against the C++ core on the same input."""
+    if not native.available():
+        print("error: native library not built; run `make` first", file=sys.stderr)
+        return 2
+    A, B = _inputs(args)
+    ref = matmul_ref(A, B)
+    print(f"A {len(A)}x{len(A[0])}, B {len(B)}x{len(B[0])}, array {args.rows or '-'}x{args.cols or '-'}")
+    ok = True
+    for df in ("os", "ws"):
+        times = {}
+        for be in ("python", "native"):
+            t0 = time.perf_counter()
+            res = simulate(A, B, df, args.rows, args.cols, backend=be)
+            times[be] = time.perf_counter() - t0
+            ok &= allclose(res.C, ref)
+        print(f"  {res.dataflow:18} {res.total_cycles:>8} cycles   python {times['python'] * 1e3:9.1f} ms   "
+              f"c++ {times['native'] * 1e3:8.2f} ms   speedup {times['python'] / times['native']:6.0f}x")
+    print("results match reference:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
 
@@ -87,6 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--cols", type=int, help="physical array width (enables tiling)")
         sp.add_argument("--seed", type=int, default=0)
         sp.add_argument("--floats", action="store_true", help="random floats instead of small ints")
+        sp.add_argument("--backend", choices=["python", "native"], default="python",
+                        help="python reference or the C++ core (run `make` first)")
 
     r = sub.add_parser("run", help="simulate one multiply, optionally showing every cycle")
     shared(r)
@@ -99,6 +126,10 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("compare", help="cycle counts and utilization for both dataflows")
     shared(c)
     c.set_defaults(func=cmd_compare)
+
+    b = sub.add_parser("bench", help="time the python simulator against the C++ core")
+    shared(b)
+    b.set_defaults(func=cmd_bench, m=48, k=48, n=48, rows=16, cols=16, floats=True)
     return p
 
 
@@ -106,6 +137,6 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
-    except ValueError as e:
+    except (ValueError, RuntimeError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
