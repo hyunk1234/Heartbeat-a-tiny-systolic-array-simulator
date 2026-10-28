@@ -1,7 +1,7 @@
 # Builds the C++ core as a shared library (used by Python via ctypes and by
 # the C example), plus the C++ unit tests and benchmarks.
 #
-#   make          build everything into build/
+#   make          build everything into build.
 #   make test     run C++ tests, the C example, and the Python tests
 #   make bench    run the C++ benchmark
 #   make clean
