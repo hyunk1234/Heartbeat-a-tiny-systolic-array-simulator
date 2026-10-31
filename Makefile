@@ -3,7 +3,7 @@
 #
 #   make          build everything into build.
 #   make test     run C++ tests, the C example, and the Python tests.
-#   make bench    run the C++ benchmark
+#   make bench    run the C++ benchmark.
 #   make clean
 
 CXX      ?= c++
