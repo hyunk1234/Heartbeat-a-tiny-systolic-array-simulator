@@ -62,7 +62,7 @@ def check_matmul(A: Matrix, B: Matrix) -> Tuple[int, int, int]:
     m, k = shape(A)
     k2, n = shape(B)
     if k != k2:
-        raise ValueError(f"inner dimensions differ: A is {m}x{k}, B is {k2}x{n}")
+        raise ValueError(f"inner dimensions differ: A is {m}x{k}, B is {k2}x{n}.")
     return m, k, n
 
 
