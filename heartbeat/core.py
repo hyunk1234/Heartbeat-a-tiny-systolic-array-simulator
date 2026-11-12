@@ -54,7 +54,7 @@ def shape(M: Sequence[Sequence[float]]) -> Tuple[int, int]:
         raise ValueError("matrix must be non-empty")
     w = len(M[0])
     if any(len(r) != w for r in M):
-        raise ValueError("matrix rows must all be the same length")
+        raise ValueError("matrix rows must all be the same length.")
     return len(M), w
 
 
