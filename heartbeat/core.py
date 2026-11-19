@@ -75,7 +75,7 @@ def copy_grid(g: list) -> list:
 
 
 def matmul_ref(A: Matrix, B: Matrix) -> Matrix:
-    """Plain triple-loop reference multiply"""
+    """Plain triple-loop reference multiply."""
     m, k, n = check_matmul(A, B)
     return [[sum(A[i][t] * B[t][j] for t in range(k)) for j in range(n)] for i in range(m)]
 
